@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8'>
+<meta name='viewport' content='width=device-width,initial-scale=1'>
+<title>Social Keyword Sentiment Watchdog</title>
+<link rel='canonical' href='https://amos-mig.github.io/twitter-keyword-sentiment-watchdog-demo/'>
+<style>
+:root{--bg:#0b0d12;--pn:#14171f;--bd:#262b36;--tx:#e8eaf0;--mu:#9aa3b2;--ac:#f59e0b}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--tx);font:15px/1.5 ui-monospace,Menlo,Consolas,monospace}
+a{color:var(--ac)}
+.wrap{max-width:1060px;margin:0 auto;padding:0 18px}
+#ban{background:var(--ac);color:#0b0d12;text-align:center;padding:8px 14px;font-size:13px;font-weight:700}
+h1{font-size:clamp(22px,4vw,34px);margin:26px 0 6px}
+h1 b{color:var(--ac)}
+.sub{color:var(--mu);margin-bottom:22px}
+.demo{display:grid;grid-template-columns:330px 1fr;gap:14px;margin-bottom:30px}
+@media(max-width:840px){.demo{grid-template-columns:1fr}}
+.p{background:var(--pn);border:1px solid var(--bd);border-radius:10px;padding:14px}
+h3{font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mu);margin-bottom:10px}
+.chip{display:inline-block;background:#1b2030;border:1px solid var(--bd);border-radius:20px;padding:2px 6px 2px 10px;margin:0 6px 6px 0;font-size:13px}
+.chip button{background:none;border:none;color:var(--mu);cursor:pointer;font-size:14px;padding:0 2px}
+.chip button:hover{color:#ef4444}
+.row{display:flex;gap:8px;margin:8px 0;flex-wrap:wrap}
+input[type=text]{flex:1;background:#0e1118;border:1px solid var(--bd);border-radius:6px;color:var(--tx);padding:7px 9px;font:inherit;min-width:0}
+button.b{background:var(--ac);border:none;color:#0b0d12;font:inherit;font-weight:700;padding:7px 12px;border-radius:6px;cursor:pointer}
+button.o{background:none;border:1px solid var(--bd);color:var(--tx);font:inherit;padding:7px 10px;border-radius:6px;cursor:pointer}
+button.o:hover{border-color:var(--ac);color:var(--ac)}
+.stat{display:flex;justify-content:space-between;color:var(--mu);font-size:13px;padding:3px 0}
+.stat b{color:var(--tx)}
+.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.sim{font-size:10px;letter-spacing:1px;border:1px solid var(--ac);color:var(--ac);border-radius:4px;padding:1px 6px}
+canvas{width:100%;height:64px;display:block;margin-bottom:6px}
+#feed{max-height:280px;overflow-y:auto}
+.post{padding:7px 0;border-bottom:1px solid #1b1f29;font-size:13px;display:flex;gap:8px;align-items:baseline}
+.post b{color:var(--ac);flex:none}
+.post i{font-style:normal;background:#2a2413;color:var(--ac);border-radius:3px;padding:0 3px}
+.tm{color:#5c6675;font-size:11px;flex:none}
+.badge{margin-left:auto;flex:none;border:1px solid;border-radius:4px;font-size:11px;padding:0 5px}
+.pos{color:#10b981}.neg{color:#ef4444}.neu{color:var(--mu)}
+#al div{border-left:3px solid #ef4444;background:#1a1216;padding:7px 10px;border-radius:0 6px 6px 0;margin-bottom:6px;font-size:12.5px}
+#al div.psp{border-color:#10b981;background:#0f1713}
+#al div.idle{border-left-color:var(--bd);background:none;color:var(--mu)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:34px}
+.card{background:var(--pn);border:1px solid var(--bd);border-radius:10px;padding:14px;font-size:13.5px}
+.card h4{font-size:14px;margin-bottom:6px}
+.card p{color:var(--mu)}
+.card.lock{border-style:dashed}
+.card.lock h4,.card.lock p{color:var(--mu)}
+pre{background:#0e1118;border:1px solid var(--bd);border-radius:10px;padding:14px;overflow-x:auto;font-size:12.5px;line-height:1.6;margin-bottom:8px}
+.cta{display:block;max-width:440px;margin:18px auto 8px;background:var(--ac);color:#0b0d12;text-align:center;font-weight:700;padding:13px;border-radius:8px;text-decoration:none;font-size:16px}
+.note{text-align:center;color:var(--mu);font-size:12.5px;margin-bottom:36px}
+footer{border-top:1px solid var(--bd);padding:18px;color:var(--mu);font-size:13px;text-align:center}
+.mut{color:var(--mu);font-size:12px;margin:10px 0 16px}
+</style>
+</head>
+<body>
+<div id='ban'>Live demo — runs on a simulated post stream. The full watchdog watches live social feeds &amp; fires real alerts ↓</div>
+<header class='wrap'>
+<h1>Social Keyword <b>Sentiment</b> Watchdog</h1>
+<p class='sub'>Know what's being said about your product while there's still time to respond — keyword streams, per-post sentiment scoring, and spike alerts for early warning.</p>
+</header>
+<main class='wrap'>
+<section class='demo'>
+<div class='p'>
+<h3>Watchlist</h3>
+<div id='wl'></div>
+<div class='row'><input type='text' id='ki' placeholder='add keyword…'><button class='b' id='ka'>add</button></div>
+<p class='mut'>The feed only surfaces posts matching these — same as the script's configurable watchlist.</p>
+<h3>Live stats</h3>
+<div class='stat'>posts scored <b id='s1'>0</b></div>
+<div class='stat'>rolling avg (last 10) <b id='s2'>0.00</b></div>
+<div class='stat'>spike alerts <b id='s3'>0</b></div>
+<div class='row'><button class='o' id='pb'>⏸ pause feed</button></div>
+<div class='row'><button class='o' id='cr'>💥 inject PR crisis</button></div>
+<div class='row'><button class='o' id='lb'>🚀 inject launch buzz</button></div>
+<h3>Score your own post</h3>
+<div class='row'><input type='text' id='pi' placeholder='acme crashed again, awful support'><button class='b' id='ps'>post &amp; score</button></div>
+<p class='mut'>A real lexicon scorer runs in your browser — the same idea as the script's per-post scoring.</p>
+</div>
+<div class='p'>
+<div class='head'><h3 style='margin:0'>Live feed</h3><span class='sim'>SIMULATED FEED</span></div>
+<canvas id='cv'></canvas>
+<div id='feed'></div>
+<h3 style='margin-top:14px'>Spike alerts</h3>
+<div id='al'><div class='idle'>Listening — baseline learning… (alerts fire at |z| ≥ 2.6)</div></div>
+</div>
+</section>
+<section class='cards'>
+<div class='card'><h4>🧭 Keyword streams</h4><p>Configurable watchlists — add or drop keywords any time; the stream only carries matching posts. Demoed live above.</p></div>
+<div class='card'><h4>📊 Sentiment scoring</h4><p>Per-post score plus rolling averages, so one angry reply never reads as a trend. The chart is the live rolling mean.</p></div>
+<div class='card'><h4>🚨 Spike detection</h4><p>Z-score detection on the rolling window fires an early-warning alert for negative <i>and</i> positive bursts. Try the crisis button.</p></div>
+<div class='card lock'><h4>🔒 Alert delivery</h4><p>Slack / email / generic webhook dispatch with retries and quiet hours — in the full kit. The demo just prints what would be sent.</p></div>
+<div class='card lock'><h4>🔒 Digest &amp; live sources</h4><p>Quiet-day daily digest, SQLite history, and connectors for Reddit, Hacker News, Mastodon &amp; RSS — in the full script.</p></div>
+</section>
+<section>
+<h3>What the real invocation looks like</h3>
+<pre># watchdog.py — excerpt (~30 of 380 lines). The full file ships with the kit.
+WATCH = load_watchlist("watch.toml")     # keywords, sources, quiet hours
+LEX   = load_lexicon()                   # built-in VADER-style scorer
+
+for post in stream(WATCH.sources, WATCH.keywords):
+    score = LEX.score(post.text)         # -1.0 … +1.0
+    history.save(post, score)
+    rolling.push(score)
+    if spike_detector(rolling, threshold=2.6):
+        alert(
+            title = f"{WATCH.name}: {'negative' if score &lt; 0 else 'positive'} spike",
+            body  = post.permalink,
+            via   = WATCH.webhooks,      # slack / email / generic
+        )
+digest.maybe_send(history, now)          # quiet-day digest at 18:00</pre>
+<a class='cta' href='https://amosmign.gumroad.com/l/twitter-keyword-sentiment-watchdog'>Get the full Watchdog · 29</a>
+<p class='note'>Single Python file · no accounts, no SDK · adaptable to any data source · instant download</p>
+</section>
+</main>
+<footer>Social Keyword Sentiment Watchdog · <a href='https://kits.amosmignery.dev'>kits.amosmignery.dev</a> · <a href='https://github.com/Amos-Mig/twitter-keyword-sentiment-watchdog-demo'>GitHub</a> · <a href='https://amosmign.gumroad.com/l/twitter-keyword-sentiment-watchdog'>Buy</a></footer>
+<script>
+const L={love:2,great:2,amazing:3,awesome:3,fast:1.5,nice:1,good:1,solid:1,clean:1,easy:1,painless:1.5,broken:-3,buggy:-2.5,slow:-2,down:-2.5,crash:-3,crashed:-3,hate:-3,worst:-3,refund:-2,awful:-3,terrible:-3,disappointed:-2};
+const NG=new Set([`not`,`never`,`no`,`isn't`,`wasn't`,`aren't`,`don't`,`doesn't`,`didn't`,`can't`,`won't`]);
+const T={p:[`loving {k} today — the new export flow is great`,`{k} is fast and setup was painless, nice work`,`shoutout to the {k} team, support was amazing`,`switched to {k} last week — clean, solid, easy`],n:[`anyone here using {k} for reporting?`,`reading the {k} changelog, some interesting notes`,`comparing {k} with our old stack today`,`does {k} expose an api for pulls?`],g:[`{k} is down again and our dashboards are broken`,`the {k} import is slow and buggy, might ask for a refund`,`hate that {k} crashed right before the client demo`,`{k} support went quiet for days — pretty disappointed`]};
+const H=[`@mira_builds`,`@opsdanny`,`@renata_ships`,`@jl_dev`,`@priyacodes`,`@theo_um`];
+const watch=new Set([`acme`]);
+const scores=[];let alerts=0,cool=0,run=true;
+const $=i=>document.getElementById(i);
+const feed=$('feed'),al=$('al'),wl=$('wl');
+const pk=a=>a[Math.random()*a.length|0];
+const avg=a=>a.reduce((x,y)=>x+y,0)/a.length;
+const esc=s=>s.replace(/[^a-z0-9]/g,String.fromCharCode(92)+'$&');
+function sc(t){let s=0,f=0;t.toLowerCase().replace(/[^a-z0-9' ]+/g,' ').split(' ').forEach(w=>{if(NG.has(w)){f=1;return}if(w in L){s+=f?-L[w]:L[w];f=0}});return Math.max(-1,Math.min(1,s/3))}
+function post(txt,h){
+ const v=sc(txt);scores.push(v);if(scores.length>60)scores.shift();
+ const r=document.createElement('div');r.className='post';
+ const tm=document.createElement('span');tm.className='tm';tm.textContent=new Date().toTimeString().slice(0,8);
+ const b=document.createElement('b');b.textContent=h;
+ const s=document.createElement('span');
+ let x=txt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+ watch.forEach(k=>{x=x.replace(new RegExp(esc(k),'gi'),m=>'<i>'+m+'</i>')});
+ s.innerHTML=x;
+ const d=document.createElement('span');d.className='badge '+(v>0.05?'pos':v<-0.05?'neg':'neu');d.textContent=(v>0?'+':'')+v.toFixed(2);
+ r.append(tm,b,s,d);feed.prepend(r);while(feed.children.length>36)feed.lastChild.remove();
+ $('s1').textContent=scores.length;
+ const m=avg(scores.slice(-10));const e2=$('s2');e2.textContent=(m>0?'+':'')+m.toFixed(2);e2.style.color=m>0.05?'#10b981':m<-0.05?'#ef4444':'';
+ draw();spike();
+}
+function spike(){
+ if(scores.length<12||Date.now()-cool<7000)return;
+ const rec=scores.slice(-6),bas=scores.slice(0,-6);
+ const rm=avg(rec),bm=avg(bas);
+ const sd=Math.max(0.12,Math.sqrt(avg(bas.map(v=>(v-bm)*(v-bm)))));
+ const z=(rm-bm)/sd;
+ if(Math.abs(z)<2.6)return;cool=Date.now();alerts++;$('s3').textContent=alerts;
+ const neg=z<0,d=document.createElement('div');if(!neg)d.className='psp';
+ d.textContent=(neg?'🚨 NEGATIVE':'🎉 POSITIVE')+' spike — recent mean '+(rm>0?'+':'')+rm.toFixed(2)+' vs baseline '+(bm>0?'+':'')+bm.toFixed(2)+' (z '+(z>0?'+':'')+z.toFixed(1)+'). The watchdog would fire your webhook here.';
+ const idle=al.querySelector('.idle');if(idle)idle.remove();
+ al.prepend(d);while(al.children.length>4)al.lastChild.remove();
+}
+function gen(k){const w=pk([...watch]);post(pk(T[k]).replaceAll('{k}',w),pk(H))}
+setInterval(()=>{if(run){const r=Math.random();gen(r<0.3?'p':r<0.75?'n':'g')}},1500);
+$('cr').onclick=()=>{let i=0;const v=setInterval(()=>{gen('g');if(++i>5)clearInterval(v)},170)};
+$('lb').onclick=()=>{let i=0;const v=setInterval(()=>{gen('p');if(++i>5)clearInterval(v)},170)};
+$('pb').onclick=e=>{run=!run;e.target.textContent=run?'⏸ pause feed':'▶ resume feed'};
+function rw(){wl.innerHTML='';watch.forEach(k=>{const c=document.createElement('span');c.className='chip';c.append(k+' ');const x=document.createElement('button');x.textContent='×';x.onclick=()=>{watch.delete(k);if(!watch.size)watch.add('acme');rw()};c.append(x);wl.append(c)})}
+$('ka').onclick=()=>{const v=$('ki').value.trim().toLowerCase().split(' ')[0];if(v&&!watch.has(v)&&watch.size<6){watch.add(v);rw()}$('ki').value=''};
+$('ki').onkeydown=e=>{if(e.key==='Enter')$('ka').click()};
+$('ps').onclick=()=>{const v=$('pi').value.trim();if(!v)return;post(v,'@you');$('pi').value=''};
+const cv=$('cv'),cx=cv.getContext('2d');
+function draw(){const w=cv.width=cv.offsetWidth*2,h=cv.height=128;cx.clearRect(0,0,w,h);
+ cx.strokeStyle='#262b36';cx.setLineDash([5,5]);cx.beginPath();cx.moveTo(0,h/2);cx.lineTo(w,h/2);cx.stroke();cx.setLineDash([]);
+ if(scores.length<2)return;cx.strokeStyle='#f59e0b';cx.lineWidth=3;cx.beginPath();
+ scores.forEach((_,i)=>{const m=avg(scores.slice(Math.max(0,i-9),i+1));const x=i/(scores.length-1)*w;const y=h/2-m*(h/2-10);i?cx.lineTo(x,y):cx.moveTo(x,y)});cx.stroke()}
+addEventListener('resize',draw);rw();for(let i=0;i<8;i++)gen(['p','n','g'][Math.random()*3|0]);draw();
+</script>
+</body>
+</html>
